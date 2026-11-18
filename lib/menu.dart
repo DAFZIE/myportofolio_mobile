@@ -1,16 +1,22 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:myportofolio_mobile/portfolio_colors.dart';
 
 class MyHomePage extends StatelessWidget {
   MyHomePage({super.key});
 
   final String npm = "2506584451";
-  final String nama = "Daffa Akmal";
+  final String nama = "Daffa";
   final String kelas = "PBP D";
 
   final List<ItemHomepage> items = [
-    ItemHomepage("Lihat Proyek", Icons.folder),
-    ItemHomepage("Tambah Proyek", Icons.add_circle),
-    ItemHomepage("Logout", Icons.logout),
+    ItemHomepage(
+      "Lihat Proyek",
+      Icons.folder,
+      PortfolioColors.lavender,
+      foregroundColor: PortfolioColors.ink,
+    ),
+    ItemHomepage("Tambah Proyek", Icons.add_circle, PortfolioColors.accent),
+    ItemHomepage("Logout", Icons.logout, PortfolioColors.accentDark),
   ];
 
   @override
@@ -26,14 +32,14 @@ class MyHomePage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
       // Body halaman utama dengan padding di sekelilingnya.
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Baris horizontal untuk menampilkan 3 InfoCard secara sejajar.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // Kartu dapat berpindah baris pada layar yang sempit.
+            Wrap(
+              alignment: WrapAlignment.center,
               children: [
                 InfoCard(title: 'NPM', content: npm),
                 InfoCard(title: 'Name', content: nama),
@@ -60,11 +66,14 @@ class MyHomePage extends StatelessWidget {
 
                   // GridView menampilkan kartu tombol dalam tata letak kisi 3 kolom.
                   GridView.count(
-                    primary: true,
+                    primary: false,
+                    physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(20),
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    crossAxisCount: 3,
+                    crossAxisCount: MediaQuery.of(context).size.width < 400
+                        ? 2
+                        : 3,
                     // shrinkWrap agar ukuran kisi menyesuaikan tinggi konten anak.
                     shrinkWrap: true,
                     children: items.map((ItemHomepage item) {
@@ -91,11 +100,11 @@ class InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: PortfolioColors.lavender,
       // Memberikan efek bayangan kartu elevasi 2 unit.
       elevation: 2.0,
       child: Container(
-        // Menyesuaikan lebar kartu dengan proporsi layar (dibagi 3.5).
-        width: MediaQuery.of(context).size.width / 3.5,
+        width: 160,
         padding: const EdgeInsets.all(16.0),
         // Menyusun teks title dan content secara vertikal.
         child: Column(
@@ -113,8 +122,15 @@ class InfoCard extends StatelessWidget {
 class ItemHomepage {
   final String name;
   final IconData icon;
+  final Color color;
+  final Color foregroundColor;
 
-  ItemHomepage(this.name, this.icon);
+  ItemHomepage(
+    this.name,
+    this.icon,
+    this.color, {
+    this.foregroundColor = Colors.white,
+  });
 }
 
 class ItemCard extends StatelessWidget {
@@ -125,8 +141,8 @@ class ItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      // Menggunakan warna sekunder dari skema tema aplikasi.
-      color: Theme.of(context).colorScheme.secondary,
+      // Setiap aksi memiliki warna berbeda dari palet portofolio.
+      color: item.color,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         // Aksi ketika kartu ditekan oleh pengguna.
@@ -146,12 +162,12 @@ class ItemCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(item.icon, color: Colors.white, size: 30.0),
+                Icon(item.icon, color: item.foregroundColor, size: 30.0),
                 const Padding(padding: EdgeInsets.all(3)),
                 Text(
                   item.name,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: item.foregroundColor),
                 ),
               ],
             ),
