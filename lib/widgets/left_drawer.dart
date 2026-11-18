@@ -1,0 +1,64 @@
+import 'package:material_ui/material_ui.dart';
+
+import '../screens/menu.dart';
+import '../screens/project_form.dart';
+
+class LeftDrawer extends StatelessWidget {
+  const LeftDrawer({super.key});
+
+  void _replacePage(BuildContext context, Widget page) {
+    final navigator = Navigator.of(context);
+    navigator.pop(); // Tutup drawer sebelum mengganti halaman aktif.
+    navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: colors.primary),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'My Portfolio',
+                    style: TextStyle(
+                      fontSize: 24,
+                      height: 1.2,
+                      fontWeight: FontWeight.bold,
+                      color: colors.onPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Explore personal projects and experiences!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: colors.onPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home_outlined),
+            title: const Text('Home'),
+            onTap: () => _replacePage(context, MyHomePage()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline),
+            title: const Text('Add Project'),
+            onTap: () => _replacePage(context, const ProjectFormPage()),
+          ),
+        ],
+      ),
+    );
+  }
+}
