@@ -1,6 +1,8 @@
 import 'package:html/parser.dart' show parseFragment;
 import 'package:material_ui/material_ui.dart';
 
+import '../widgets/left_drawer.dart';
+
 /// Mengikuti field EducationForm pada main/forms.py portofolio Django.
 class EducationFormPage extends StatefulWidget {
   const EducationFormPage({super.key});
@@ -142,6 +144,7 @@ class _EducationFormPageState extends State<EducationFormPage> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: const LeftDrawer(),
       appBar: AppBar(
         title: const Text('Tambah Pendidikan'),
         backgroundColor: colors.primary,

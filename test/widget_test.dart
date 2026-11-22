@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:myportofolio_mobile/main.dart';
 import 'package:myportofolio_mobile/screens/menu.dart';
 import 'package:myportofolio_mobile/screens/project_form.dart';
+import 'package:myportofolio_mobile/screens/education_form.dart';
 
 Future<void> openForm(WidgetTester tester) async {
   await tester.pumpWidget(const MyApp());
@@ -26,6 +27,66 @@ Future<void> openDrawer(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'Education card pushes form; Back and drawer Home return to menu',
+    (tester) async {
+      await tester.pumpWidget(const MyApp());
+      Future<void> openEducation() async {
+        await tester.ensureVisible(find.text('Tambah Pendidikan'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Tambah Pendidikan'));
+        await tester.pumpAndSettle();
+      }
+
+      await openEducation();
+      expect(find.byType(EducationFormPage), findsOneWidget);
+      expect(
+        Navigator.of(tester.element(find.byType(EducationFormPage))).canPop(),
+        isTrue,
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(MyHomePage), findsOneWidget);
+      await openEducation();
+      await openDrawer(tester);
+      await tester.tap(find.text('Home'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MyHomePage), findsOneWidget);
+      expect(find.byType(EducationFormPage), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Shared drawer opens Education, Home and Add Project on a phone',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(const MyApp());
+      await openDrawer(tester);
+      await tester.tap(find.widgetWithText(ListTile, 'Tambah Pendidikan'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EducationFormPage), findsOneWidget);
+      await openDrawer(tester);
+      await tester.tap(find.text('Home'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MyHomePage), findsOneWidget);
+      await openDrawer(tester);
+      await tester.tap(find.widgetWithText(ListTile, 'Tambah Pendidikan'));
+      await tester.pumpAndSettle();
+      await openDrawer(tester);
+      await tester.tap(find.text('Add Project'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProjectFormPage), findsOneWidget);
+      await openDrawer(tester);
+      await tester.tap(find.widgetWithText(ListTile, 'Tambah Pendidikan'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EducationFormPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Card pushes form and system Back returns to Home', (
     tester,
   ) async {
