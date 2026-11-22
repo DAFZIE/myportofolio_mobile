@@ -19,6 +19,7 @@ class MyHomePage extends StatelessWidget {
       foregroundColor: PortfolioColors.ink,
     ),
     ItemHomepage("Tambah Proyek", Icons.add_circle, PortfolioColors.accent),
+    ItemHomepage("Tambah Pendidikan", Icons.school, PortfolioColors.ink),
     ItemHomepage("Logout", Icons.logout, PortfolioColors.accentDark),
   ];
 
