@@ -19,6 +19,7 @@ class _EducationFormPageState extends State<EducationFormPage> {
   final _endText = TextEditingController();
   DateTime? _startedAt;
   DateTime? _endedAt;
+  String? _level;
 
   static const _levels = ['SD', 'SMP', 'SMA', 'S1', 'S2', 'S3'];
 
@@ -121,14 +122,39 @@ class _EducationFormPageState extends State<EducationFormPage> {
     FocusScope.of(context).unfocus();
     _title.text = _cleanText(_title.text);
     _description.text = _cleanText(_description.text);
-    // Tahap ini baru formulir: belum ada dialog ringkasan atau penyimpanan API.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Isian pendidikan valid. Data belum disimpan.'),
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Ringkasan Pendidikan'),
+        scrollable: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nama Pendidikan: ${_title.text}'),
+            const SizedBox(height: 12),
+            Text('Deskripsi Pendidikan: ${_description.text}'),
+            const SizedBox(height: 12),
+            Text('Jenjang Pendidikan: $_level'),
+            const SizedBox(height: 12),
+            Text('Tanggal Mulai: ${_formatDateTime(_startedAt!)}'),
+            const SizedBox(height: 12),
+            Text(
+              'Tanggal Selesai: ${_endedAt == null ? 'Masih berlangsung' : _formatDateTime(_endedAt!)}',
+            ),
+            const SizedBox(height: 16),
+            const Text('Data belum disimpan ke database.'),
+          ],
         ),
-      );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -209,7 +235,7 @@ class _EducationFormPageState extends State<EducationFormPage> {
                             ),
                           )
                           .toList(),
-                      onChanged: (_) {},
+                      onChanged: (value) => _level = value,
                       validator: (value) => _levels.contains(value)
                           ? null
                           : 'Pilih jenjang pendidikan.',

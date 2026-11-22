@@ -42,6 +42,38 @@ Future<void> fillRequired(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Long summary scrolls and can close on a narrow screen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: EducationFormPage()));
+    await fillRequired(tester);
+    await tester.enterText(
+      field('description'),
+      'Riwayat pendidikan panjang. ' * 100,
+    );
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpAndSettle();
+    await save(tester);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.ensureVisible(find.text('Tanggal Selesai: Masih berlangsung'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tanggal Selesai: Masih berlangsung').hitTestable(),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Tutup'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      tester.widget<TextFormField>(field('description')).controller!.text,
+      'Riwayat pendidikan panjang. ' * 99 + 'Riwayat pendidikan panjang.',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Education enforces required fields, HTML-only rejection and model length',
     (tester) async {
@@ -51,6 +83,7 @@ void main() {
       expect(find.text('Deskripsi pendidikan wajib diisi.'), findsOneWidget);
       expect(find.text('Pilih jenjang pendidikan.'), findsOneWidget);
       expect(find.text('Tanggal mulai wajib diisi.'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
       await tester.enterText(field('title'), '   ');
       await tester.enterText(field('description'), '<p> </p>');
       await save(tester);
@@ -82,32 +115,50 @@ void main() {
       find.text('Tanggal selesai tidak boleh sebelum tanggal mulai.'),
       findsOneWidget,
     );
+    expect(find.byType(AlertDialog), findsNothing);
     await chooseDate(tester, 'ended_at', DateTime(2029, 8, 1));
     await save(tester);
-    expect(
-      find.text('Isian pendidikan valid. Data belum disimpan.'),
-      findsOneWidget,
-    );
+    expect(find.text('Ringkasan Pendidikan'), findsOneWidget);
     expect(
       tester.widget<TextFormField>(field('title')).controller!.text,
       'Universitas Indonesia',
     );
-    expect(find.byType(AlertDialog), findsNothing);
-    await tester.pump(const Duration(seconds: 5));
+    expect(find.text('Nama Pendidikan: Universitas Indonesia'), findsOneWidget);
+    expect(
+      find.text('Deskripsi Pendidikan: Belajar Ilmu Komputer'),
+      findsOneWidget,
+    );
+    expect(find.text('Jenjang Pendidikan: S1'), findsOneWidget);
+    final startText = tester
+        .widget<TextFormField>(field('started_at'))
+        .controller!
+        .text;
+    final endText = tester
+        .widget<TextFormField>(field('ended_at'))
+        .controller!
+        .text;
+    expect(find.text('Tanggal Mulai: $startText'), findsOneWidget);
+    expect(find.text('Tanggal Selesai: $endText'), findsOneWidget);
+    await tester.tap(find.text('Tutup'));
     await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      tester.widget<TextFormField>(field('title')).controller!.text,
+      'Universitas Indonesia',
+    );
+    await tester.enterText(field('title'), 'Pendidikan diperbarui');
     await tester.ensureVisible(find.byTooltip('Hapus tanggal selesai'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Hapus tanggal selesai'));
     await tester.pumpAndSettle();
     await save(tester);
-    expect(
-      find.text('Isian pendidikan valid. Data belum disimpan.'),
-      findsOneWidget,
-    );
+    expect(find.text('Ringkasan Pendidikan'), findsOneWidget);
     expect(
       tester.widget<TextFormField>(field('ended_at')).controller!.text,
       isEmpty,
     );
+    expect(find.text('Nama Pendidikan: Pendidikan diperbarui'), findsOneWidget);
+    expect(find.text('Tanggal Selesai: Masih berlangsung'), findsOneWidget);
   });
 
   testWidgets('Save remains reachable on narrow screen with keyboard', (
