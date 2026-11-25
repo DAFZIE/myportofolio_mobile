@@ -1,3 +1,65 @@
+### Tutorial 10
+
+Implemented public project list/detail screens, generated JSON models, token login
+and logout, guarded project creation, API error handling, and GitHub Actions CI/CD.
+The existing Education form remains the local form from Assignment 8; its backend
+integration belongs to Assignment 9.
+
+**Backend setup:** apply [the Django patch](backend_changes/README.md), install
+requirements, run migrations, and start Django on port 8000. Use a Django superuser
+to create projects. The backend from the supplied ZIP needed the included schema
+migration before it could accept the tutorial's payload.
+
+**Flutter setup and run:**
+
+```powershell
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
+```
+
+For an Android emulator, `flutter run` defaults to `http://10.0.2.2:8000`.
+For a physical Android device connected through USB, run
+`adb reverse tcp:8000 tcp:8000`, then
+`flutter run --dart-define=API_BASE_URL=http://localhost:8000`.
+For a deployed backend, pass its HTTPS URL with `--dart-define=API_BASE_URL=...`.
+Use the Dart executable bundled with Flutter 3.50.0 (Dart 3.14); an older standalone
+Dart installation will fail the SDK constraint.
+
+**How the code fits together:**
+
+- `models/project.dart` maps Dart camelCase to the API's snake_case keys. UUIDs are
+  read from the server and excluded from POST bodies; the image URL is optional.
+- `services/api_client.dart` owns HTTP requests, token headers, timeouts and safe
+  status messages. `services/auth_state.dart` holds the token in memory only.
+- `main.dart` supplies both services through Provider. `widgets/auth_guard.dart`
+  opens login before protected actions. Cancelling login cancels the action.
+- The project list caches its Future and supports loading, errors, retry, empty
+  results and pull-to-refresh. Tapping a project opens its detail screen.
+- The form validates fields and URLs and only shows success after an API save.
+  A 401 clears the session and asks for login again while retaining the form.
+  Press Save after re-authentication to retry. A 403 explains the permission issue.
+- Logout clears local state even when the server cannot be reached; the message
+  tells the user when server-side revocation could not be confirmed.
+
+**CI/CD:** `.github/workflows/main.yaml` uses the tutorial's
+[Very Good Workflows reusable workflow](https://github.com/VeryGoodOpenSource/very_good_workflows/blob/v2/.github/workflows/flutter_package.yml)
+for generation, formatting, analysis and tests. The dependent `build_apk` job
+builds and uploads `app-release-apk`. Optionally set the GitHub Actions repository
+variable `API_BASE_URL` to your deployed backend; if unset, CI uses the emulator
+default instead of an empty URL. The workflow is prepared locally; it has not
+been pushed or run on GitHub.
+
+Local verification: `flutter analyze`, 12 Flutter tests, `flutter build web`,
+36 Django tests, and a real HTTP smoke check using the Dart API client passed.
+Local APK compilation requires an Android SDK, which was unavailable here.
+Android cleartext HTTP is enabled for tutorial development; disable it when
+shipping an HTTPS-only production app. Release signing remains the starter
+project's debug signing configuration, suitable for this tutorial's APK artifact.
+
+After reviewing and pushing the work, check that both GitHub Actions jobs pass
+and submit the commit link in SCELE yourself.
+
 ### Tugas 7
 
 Saya tidak kelar mengerjakan tutorial 8, jadi saya tidak mengumpul tugas 7.

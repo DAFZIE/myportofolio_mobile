@@ -1,3 +1,6 @@
+import 'package:provider/provider.dart';
+import 'package:myportofolio_mobile/services/auth_state.dart';
+import 'package:myportofolio_mobile/services/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:myportofolio_mobile/screens/education_form.dart';
@@ -45,7 +48,12 @@ void main() {
   testWidgets('Long summary scrolls and can close on a narrow screen', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: EducationFormPage()));
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthState(ApiClient()),
+        child: const MaterialApp(home: EducationFormPage()),
+      ),
+    );
     await fillRequired(tester);
     await tester.enterText(
       field('description'),
@@ -77,7 +85,12 @@ void main() {
   testWidgets(
     'Education enforces required fields, HTML-only rejection and model length',
     (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: EducationFormPage()));
+      await tester.pumpWidget(
+        ChangeNotifierProvider(
+          create: (_) => AuthState(ApiClient()),
+          child: const MaterialApp(home: EducationFormPage()),
+        ),
+      );
       await save(tester);
       expect(find.text('Nama pendidikan wajib diisi.'), findsOneWidget);
       expect(find.text('Deskripsi pendidikan wajib diisi.'), findsOneWidget);
@@ -107,7 +120,12 @@ void main() {
   testWidgets('Education validates date order and supports ongoing education', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: EducationFormPage()));
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthState(ApiClient()),
+        child: const MaterialApp(home: EducationFormPage()),
+      ),
+    );
     await fillRequired(tester);
     await chooseDate(tester, 'ended_at', DateTime(2024, 8, 1));
     await save(tester);
@@ -169,7 +187,12 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetViewInsets);
-    await tester.pumpWidget(const MaterialApp(home: EducationFormPage()));
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthState(ApiClient()),
+        child: const MaterialApp(home: EducationFormPage()),
+      ),
+    );
     tester.view.viewInsets = const FakeViewPadding(bottom: 280);
     await tester.pumpAndSettle();
     await tester.enterText(field('description'), 'Deskripsi');

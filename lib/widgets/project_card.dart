@@ -3,6 +3,11 @@ import 'package:material_ui/material_ui.dart';
 import '../screens/menu.dart';
 import '../screens/education_form.dart';
 import '../screens/project_form.dart';
+import '../screens/project_list_screen.dart';
+import '../services/auth_state.dart';
+import 'auth_guard.dart';
+
+import 'package:provider/provider.dart';
 
 class ItemCard extends StatelessWidget {
   final ItemHomepage item;
@@ -17,7 +22,7 @@ class ItemCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         // Aksi ketika kartu ditekan oleh pengguna.
-        onTap: () {
+        onTap: () async {
           // Menampilkan SnackBar dengan pesan interaktif.
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
@@ -27,10 +32,24 @@ class ItemCard extends StatelessWidget {
               ),
             );
           if (item.name == 'Tambah Proyek') {
+            if (!await ensureLoggedIn(context) || !context.mounted) return;
             Navigator.push(
               context,
               MaterialPageRoute<void>(builder: (_) => const ProjectFormPage()),
             );
+          } else if (item.name == 'Lihat Proyek') {
+            Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const ProjectListScreen(),
+              ),
+            );
+          } else if (item.name == 'Logout') {
+            if (context.read<AuthState>().isLoggedIn) {
+              await logoutWithFeedback(context);
+            } else {
+              await ensureLoggedIn(context);
+            }
           } else if (item.name == 'Tambah Pendidikan') {
             Navigator.push(
               context,
@@ -49,7 +68,10 @@ class ItemCard extends StatelessWidget {
                 Icon(item.icon, color: item.foregroundColor, size: 30.0),
                 const Padding(padding: EdgeInsets.all(3)),
                 Text(
-                  item.name,
+                  item.name == 'Logout' &&
+                          !context.watch<AuthState>().isLoggedIn
+                      ? 'Login'
+                      : item.name,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: item.foregroundColor),
                 ),
