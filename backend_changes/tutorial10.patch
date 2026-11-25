@@ -1,0 +1,289 @@
+--- a/portofolio/settings.py
++++ b/portofolio/settings.py
+@@ -20,6 +20,7 @@
+ 
+ ALLOWED_HOSTS = [
+     "localhost",
++    "10.0.2.2",
+     "127.0.0.1",
+     "daffa-akmal51-myportofolio.pws.cs.ui.ac.id",
+ ]
+@@ -50,12 +51,15 @@
+     "django.contrib.staticfiles",
+     "main",
+     "rest_framework",
++    "rest_framework.authtoken",
++    "corsheaders",
+ ]
+ 
+ MIDDLEWARE = [
+     "django.middleware.security.SecurityMiddleware",
+     "whitenoise.middleware.WhiteNoiseMiddleware",
+     "django.contrib.sessions.middleware.SessionMiddleware",
++    "corsheaders.middleware.CorsMiddleware",
+     "django.middleware.common.CommonMiddleware",
+     "django.middleware.csrf.CsrfViewMiddleware",
+     "django.contrib.auth.middleware.AuthenticationMiddleware",
+@@ -161,3 +165,17 @@
+ CSRF_TRUSTED_ORIGINS = [
+     "https://daffa-akmal51-myportofolio.pws.cs.ui.ac.id",
+ ]
++
++REST_FRAMEWORK = {
++    "DEFAULT_AUTHENTICATION_CLASSES": [
++        "rest_framework.authentication.TokenAuthentication",
++        "rest_framework.authentication.SessionAuthentication",
++    ],
++}
++CORS_ALLOW_ALL_ORIGINS = not PRODUCTION
++if PRODUCTION:
++    CORS_ALLOWED_ORIGINS = [
++        origin.strip()
++        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
++        if origin.strip()
++    ]
+--- a/main/models.py
++++ b/main/models.py
+@@ -43,7 +43,9 @@
+     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+     title = models.CharField(max_length=255)
+     description = models.TextField()
+-    category = models.CharField(max_length=20, choices=PROJECT_CHOICES)
++    category = models.CharField(max_length=20, choices=PROJECT_CHOICES, default="project-small")
++    tech_stack = models.CharField(max_length=255, blank=True, default="")
++    project_image_url = models.URLField(blank=True, default="")
+     project_url = models.URLField(blank=True)
+ 
+     starred_by = models.ManyToManyField(
+--- a/main/serializers.py
++++ b/main/serializers.py
+@@ -42,6 +42,7 @@
+         model = Project
+         fields = [
+             "id", "title", "description", "category", "project_url",
++            "tech_stack", "project_image_url",
+             "category_display", "star_count", "is_starred", "starred_by_names",
+         ]
+         read_only_fields = ["id"]
+--- a/main/api_views.py
++++ b/main/api_views.py
+@@ -1,8 +1,7 @@
+ from django.shortcuts import get_object_or_404
+ from rest_framework import status
+-from rest_framework.authentication import SessionAuthentication
+ from rest_framework.decorators import (
+-    api_view, authentication_classes, permission_classes,
++    api_view, permission_classes,
+ )
+ from rest_framework.permissions import IsAuthenticated
+ from rest_framework.response import Response
+@@ -13,7 +12,6 @@
+ 
+ 
+ @api_view(["GET", "HEAD", "POST"])
+-@authentication_classes([SessionAuthentication])
+ @permission_classes([IsPortfolioOwnerOrReadOnly])
+ def project_list(request):
+     if request.method in ("GET", "HEAD"):
+@@ -33,7 +31,6 @@
+ 
+ 
+ @api_view(["GET", "HEAD", "PUT", "PATCH", "DELETE"])
+-@authentication_classes([SessionAuthentication])
+ @permission_classes([IsPortfolioOwnerOrReadOnly])
+ def project_detail(request, project_id):
+     project = get_object_or_404(
+@@ -57,7 +54,6 @@
+ 
+ 
+ @api_view(["POST"])
+-@authentication_classes([SessionAuthentication])
+ @permission_classes([IsAuthenticated])
+ def project_star(request, project_id):
+     project = get_object_or_404(Project, pk=project_id)
+@@ -70,7 +66,6 @@
+ 
+ 
+ @api_view(["GET", "HEAD", "POST"])
+-@authentication_classes([SessionAuthentication])
+ @permission_classes([IsPortfolioOwnerOrEditorOrReadOnly])
+ def education_list(request):
+     if request.method in ("GET", "HEAD"):
+@@ -90,7 +85,6 @@
+ 
+ 
+ @api_view(["GET", "HEAD", "PUT", "PATCH", "DELETE"])
+-@authentication_classes([SessionAuthentication])
+ @permission_classes([IsPortfolioOwnerOrEditorOrReadOnly])
+ def education_detail(request, education_id):
+     education = get_object_or_404(
+@@ -114,7 +108,6 @@
+ 
+ 
+ @api_view(["POST"])
+-@authentication_classes([SessionAuthentication])
+ @permission_classes([IsAuthenticated])
+ def education_star(request, education_id):
+     education = get_object_or_404(Education, pk=education_id)
+@@ -124,3 +117,11 @@
+         education.starred_by.add(request.user)
+     serializer = EducationSerializer(education, context={"request": request})
+     return Response(serializer.data)
++
++
++@api_view(["POST"])
++@permission_classes([IsAuthenticated])
++def api_logout(request):
++    if request.auth is not None:
++        request.auth.delete()
++    return Response(status=status.HTTP_204_NO_CONTENT)
+--- a/main/api_urls.py
++++ b/main/api_urls.py
+@@ -1,10 +1,13 @@
+ from django.urls import path
++from rest_framework.authtoken.views import obtain_auth_token
+ 
+ from main import api_views
+ 
+ app_name = "api"
+ 
+ urlpatterns = [
++    path("auth/token/", obtain_auth_token, name="token-auth"),
++    path("auth/logout/", api_views.api_logout, name="logout"),
+     path("projects/", api_views.project_list, name="project-list"),
+     path("projects/<uuid:project_id>/", api_views.project_detail, name="project-detail"),
+     path("projects/<uuid:project_id>/star/", api_views.project_star, name="project-star"),
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -6,3 +6,4 @@
+ urllib3
+ python-dotenv
+ djangorestframework~=3.18.3
++django-cors-headers
+--- a/main/tests_api.py
++++ b/main/tests_api.py
+@@ -46,9 +46,9 @@
+     def test_guest_and_visitor_cannot_write(self):
+         for user in (None, self.visitor):
+             self.client.force_authenticate(user=user)
+-            self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 403)
+-            self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, 403)
+-            self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
++            self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 401 if user is None else 403)
++            self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, 401 if user is None else 403)
++            self.assertEqual(self.client.delete(self.detail_url).status_code, 401 if user is None else 403)
+         self.assertEqual(Project.objects.count(), 1)
+         self.project.refresh_from_db()
+         self.assertEqual(self.project.title, "Portfolio")
+@@ -88,7 +88,7 @@
+         self.assertFalse(Project.objects.filter(pk=self.project.id).exists())
+ 
+     def test_star_requires_login_and_toggles(self):
+-        self.assertEqual(self.client.post(self.star_url).status_code, status.HTTP_403_FORBIDDEN)
++        self.assertEqual(self.client.post(self.star_url).status_code, status.HTTP_401_UNAUTHORIZED)
+         self.client.force_authenticate(user=self.visitor)
+         response = self.client.post(self.star_url)
+         self.assertTrue(response.data["is_starred"])
+@@ -216,17 +216,17 @@
+         snapshot = self.education_snapshot()
+         for user in (None, self.visitor):
+             self.client.force_authenticate(user)
+-            self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 403)
+-            self.assertEqual(self.education_snapshot(), snapshot)
+-            self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, 403)
+-            self.assertEqual(self.education_snapshot(), snapshot)
+-            self.assertEqual(self.client.put(self.detail_url, {**self.payload, "title": "Changed"}, format="json").status_code, 403)
+-            self.assertEqual(self.education_snapshot(), snapshot)
+-            self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
++            self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 401 if user is None else 403)
++            self.assertEqual(self.education_snapshot(), snapshot)
++            self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, 401 if user is None else 403)
++            self.assertEqual(self.education_snapshot(), snapshot)
++            self.assertEqual(self.client.put(self.detail_url, {**self.payload, "title": "Changed"}, format="json").status_code, 401 if user is None else 403)
++            self.assertEqual(self.education_snapshot(), snapshot)
++            self.assertEqual(self.client.delete(self.detail_url).status_code, 401 if user is None else 403)
+             self.assertEqual(self.education_snapshot(), snapshot)
+ 
+     def test_star_is_personal_and_read_only(self):
+-        self.assertEqual(self.client.post(self.star_url).status_code, 403)
++        self.assertEqual(self.client.post(self.star_url).status_code, 401)
+         self.assertEqual(self.education.starred_by.count(), 0)
+         self.client.force_authenticate(self.visitor)
+         self.assertEqual(self.client.get(self.star_url).status_code, 405)
+--- /dev/null
++++ b/main/migrations/0008_tutorial10_project_fields.py
+@@ -0,0 +1,28 @@
++# Generated by Django 5.2.19 on 2026-11-25 13:45
++
++from django.db import migrations, models
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('main', '0007_education_starred_by_experience_starred_by_and_more'),
++    ]
++
++    operations = [
++        migrations.AddField(
++            model_name='project',
++            name='project_image_url',
++            field=models.URLField(blank=True, default=''),
++        ),
++        migrations.AddField(
++            model_name='project',
++            name='tech_stack',
++            field=models.CharField(blank=True, default='', max_length=255),
++        ),
++        migrations.AlterField(
++            model_name='project',
++            name='category',
++            field=models.CharField(choices=[('project-small', 'Small Project'), ('project-big', 'Big Project')], default='project-small', max_length=20),
++        ),
++    ]
+--- /dev/null
++++ b/main/tests_tutorial10.py
+@@ -0,0 +1,43 @@
++from django.contrib.auth import get_user_model
++from django.test import TestCase
++from rest_framework.test import APIClient
++
++
++class Tutorial10Tests(TestCase):
++    def setUp(self):
++        self.client = APIClient()
++        self.owner = get_user_model().objects.create_superuser('tutorial-owner', password='test-password-only')
++        self.member = get_user_model().objects.create_user('tutorial-member', password='test-password-only')
++        self.payload = {
++            'title': 'Flutter integration', 'description': 'Created using the mobile payload',
++            'tech_stack': 'Flutter, Django', 'project_url': 'https://example.com',
++            'project_image_url': '',
++        }
++
++    def test_public_read_login_create_logout_and_revoked_token(self):
++        self.assertEqual(self.client.get('/api/v1/projects/').status_code, 200)
++        self.assertEqual(self.client.post('/api/v1/projects/', self.payload, format='json').status_code, 401)
++        response = self.client.post('/api/v1/auth/token/', {'username': 'tutorial-owner', 'password': 'test-password-only'}, format='json')
++        self.assertEqual(response.status_code, 200)
++        self.client.credentials(HTTP_AUTHORIZATION='Token ' + response.data['token'])
++        response = self.client.post('/api/v1/projects/', self.payload, format='json')
++        self.assertEqual(response.status_code, 201)
++        self.assertEqual(response.data['tech_stack'], 'Flutter, Django')
++        self.assertEqual(response.data['category'], 'project-small')
++        self.assertEqual(self.client.post('/api/v1/auth/logout/').status_code, 204)
++        self.assertEqual(self.client.post('/api/v1/projects/', self.payload, format='json').status_code, 401)
++
++    def test_invalid_login_and_non_owner_permissions(self):
++        self.assertEqual(self.client.post('/api/v1/auth/token/', {'username': 'tutorial-owner', 'password': 'wrong'}, format='json').status_code, 400)
++        response = self.client.post('/api/v1/auth/token/', {'username': 'tutorial-member', 'password': 'test-password-only'}, format='json')
++        self.client.credentials(HTTP_AUTHORIZATION='Token ' + response.data['token'])
++        self.assertEqual(self.client.post('/api/v1/projects/', self.payload, format='json').status_code, 403)
++
++    def test_session_authentication_still_works(self):
++        self.client.force_login(self.owner)
++        self.assertEqual(self.client.post('/api/v1/projects/', self.payload, format='json').status_code, 201)
++
++    def test_local_cors_preflight(self):
++        response = self.client.options('/api/v1/projects/', HTTP_ORIGIN='http://localhost:5000', HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST', HTTP_ACCESS_CONTROL_REQUEST_HEADERS='authorization,content-type')
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(response['Access-Control-Allow-Origin'], '*')
